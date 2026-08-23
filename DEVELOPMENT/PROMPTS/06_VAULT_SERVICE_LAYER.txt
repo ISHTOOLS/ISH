@@ -1,0 +1,27 @@
+RULES:
+- Mevcut çalışan kodu bozma
+- Backward compatibility koru
+- TODO bırakma
+- Her değişiklik test edilebilir olsun
+- Minimal invasive değişiklik yap
+- Yeni eklenen her şey modüler olsun
+- Güvenlik öncelikli davran
+
+TASK: Introduce secure vault access layer
+
+CREATE:
+- VaultService
+
+RULE:
+- ALL vault access goes through it
+
+ADD:
+- access validation
+- tenant isolation
+- audit hooks
+
+DO NOT:
+- rewrite vault logic
+
+OUTPUT:
+- VaultService module

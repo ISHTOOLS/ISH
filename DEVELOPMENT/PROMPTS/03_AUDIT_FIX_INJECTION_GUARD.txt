@@ -1,0 +1,25 @@
+RULES:
+- Mevcut çalışan kodu bozma
+- Backward compatibility koru
+- TODO bırakma
+- Her değişiklik test edilebilir olsun
+- Minimal invasive değişiklik yap
+- Yeni eklenen her şey modüler olsun
+- Güvenlik öncelikli davran
+
+TASK: Fix audit logging gaps and injection safety
+
+ADD:
+- token verify fail -> AUTH_FAIL
+- vault read -> VAULT_READ
+
+ADD SANITIZATION:
+- remove \n \r \t
+
+ENSURE:
+- single-line JSON logs
+- no injection possible
+
+OUTPUT:
+- patched usage
+- sanitization helper

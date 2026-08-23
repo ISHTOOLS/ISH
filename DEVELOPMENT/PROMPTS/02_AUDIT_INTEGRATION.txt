@@ -1,0 +1,18 @@
+RULES:
+- Mevcut çalışan kodu bozma
+- Backward compatibility koru
+- TODO bırakma
+- Her değişiklik test edilebilir olsun
+- Minimal invasive değişiklik yap
+- Yeni eklenen her şey modüler olsun
+- Güvenlik öncelikli davran
+
+TASK: Integrate existing audit logging into system
+
+Integrate into:
+- crypto-engine
+- vault
+- auth
+
+OUTPUT:
+- integrated calls only

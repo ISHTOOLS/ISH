@@ -1,0 +1,4 @@
+PHASE 16 — Dependency + Supply Chain Security
+
+The full user-supplied prompt is the controlling specification for this phase.
+Status: processed against the current ISHv4 baseline; see PHASE-10-19-REPORT.md.

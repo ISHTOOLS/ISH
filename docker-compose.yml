@@ -1,0 +1,74 @@
+version: "3.9"
+
+# Gercek 3-node Raft KMS kumesi + mock SIEM syslog dinleyicisi.
+# Tek komutla ayaga kalkar: docker compose up --build
+# Sonra: docker compose exec kms-a curl -X POST localhost:4000/api/vault/init ...
+
+services:
+  kms-a:
+    build: .
+    container_name: ishv4-kms-a
+    environment:
+      - PORT=4000
+      - CLUSTER_NODE_ID=A
+      - CLUSTER_PEERS=http://kms-b:4000,http://kms-c:4000
+      - CLUSTER_SECRET=${ISHV4_CLUSTER_SECRET:?ISHV4_CLUSTER_SECRET must be set - e.g. export ISHV4_CLUSTER_SECRET=$(openssl rand -hex 32)}
+      - ISHV4_DATA_DIR=data
+      - STRICT_MODE=false
+    volumes:
+      - kms-a-data:/app/data
+    ports:
+      - "4001:4000"
+    networks: [ishv4-net]
+
+  kms-b:
+    build: .
+    container_name: ishv4-kms-b
+    environment:
+      - PORT=4000
+      - CLUSTER_NODE_ID=B
+      - CLUSTER_PEERS=http://kms-a:4000,http://kms-c:4000
+      - CLUSTER_SECRET=${ISHV4_CLUSTER_SECRET:?ISHV4_CLUSTER_SECRET must be set}
+      - ISHV4_DATA_DIR=data
+      - STRICT_MODE=false
+    volumes:
+      - kms-b-data:/app/data
+    ports:
+      - "4002:4000"
+    networks: [ishv4-net]
+
+  kms-c:
+    build: .
+    container_name: ishv4-kms-c
+    environment:
+      - PORT=4000
+      - CLUSTER_NODE_ID=C
+      - CLUSTER_PEERS=http://kms-a:4000,http://kms-b:4000
+      - CLUSTER_SECRET=${ISHV4_CLUSTER_SECRET:?ISHV4_CLUSTER_SECRET must be set}
+      - ISHV4_DATA_DIR=data
+      - STRICT_MODE=false
+    volumes:
+      - kms-c-data:/app/data
+    ports:
+      - "4003:4000"
+    networks: [ishv4-net]
+
+  # Gercek bir mock SIEM syslog toplayicisi - KMS'lerin gercek zamanli
+  # push ettigi CEF/syslog mesajlarini goruntuler (bkz. src/siem-pusher.js)
+  siem-mock:
+    image: alpine:3.20
+    container_name: ishv4-siem-mock
+    command: >
+      sh -c "apk add --no-cache socat >/dev/null && echo 'SIEM mock UDP:514 dinliyor...' && socat -u UDP-RECV:514,fork STDOUT"
+    ports:
+      - "514:514/udp"
+    networks: [ishv4-net]
+
+networks:
+  ishv4-net:
+    driver: bridge
+
+volumes:
+  kms-a-data:
+  kms-b-data:
+  kms-c-data:

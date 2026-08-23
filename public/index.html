@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ISHv4-Real KMS — Gerçek Şifreleme Konsolu</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="topbar">
+  <h1>ISHv4-Real <span class="tag">KMS / Vault</span></h1>
+  <div id="vaultBadge" class="badge unknown">durum yükleniyor…</div>
+</header>
+
+<main class="grid">
+
+  <section class="card">
+    <h2>1. Vault Durumu</h2>
+    <pre id="statusBox" class="mono">—</pre>
+    <button id="refreshStatusBtn">Durumu Yenile</button>
+  </section>
+
+  <section class="card">
+    <h2>2. Vault Başlatma (Init)</h2>
+    <p class="hint">Sadece vault hiç başlatılmamışsa çalışır. Master anahtar üretilir, gerçek Shamir algoritmasıyla parçalara bölünür. Parçalar SADECE BİR KEZ gösterilir, sunucu bunları hiçbir yerde saklamaz.</p>
+    <div class="row">
+      <label>Threshold (K) <input id="initK" type="number" value="3" min="2" /></label>
+      <label>Toplam Parça (N) <input id="initN" type="number" value="5" min="2" /></label>
+      <button id="initBtn">Vault'u Başlat</button>
+    </div>
+    <pre id="initOutput" class="mono warning-box" hidden></pre>
+  </section>
+
+  <section class="card">
+    <h2>3. Vault Mühür Açma (Unseal)</h2>
+    <p class="hint">Init sonrası (veya her sunucu yeniden başlatıldığında) vault mühürlüdür. Gerçek şifreleme yapılamaz. Eşik sayıda (K) parça tek tek gönderilmelidir.</p>
+    <div class="row">
+      <label>Parça Index <input id="unsealIndex" type="number" min="1" /></label>
+      <label>Parça (hex) <input id="unsealShare" type="text" placeholder="64 haneli hex" /></label>
+      <button id="unsealBtn">Parça Gönder</button>
+    </div>
+    <pre id="unsealOutput" class="mono" hidden></pre>
+    <button id="sealBtn" class="danger">Vault'u Mühürle (Seal)</button>
+  </section>
+
+  <section class="card">
+    <h2>4. Anahtar (KEK) Yönetimi</h2>
+    <div class="row">
+      <label>Alias <input id="keyAlias" type="text" placeholder="orn: finans_kek" /></label>
+      <label>Algoritma
+        <select id="keyAlgo">
+          <option>AES-256-GCM</option>
+          <option>ChaCha20-Poly1305</option>
+        </select>
+      </label>
+      <button id="createKeyBtn">Anahtar Oluştur</button>
+    </div>
+    <table id="keysTable" class="mono">
+      <thead><tr><th>alias</th><th>algoritma</th><th>versiyon</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="card wide">
+    <h2>5. Gerçek Şifreleme / Şifre Çözme Alanı</h2>
+    <p class="hint">Bu alan sahte veri döndürmez — her istek gerçek AES-256-GCM işlemi yapan backend'e gider ve gerçek sonucu gösterir.</p>
+    <div class="row">
+      <label>Anahtar alias <input id="encAlias" type="text" placeholder="önce yukarıda anahtar oluşturun" /></label>
+      <label class="grow">Metin <input id="encPlaintext" type="text" placeholder="şifrelenecek metin" /></label>
+      <button id="encryptBtn">Şifrele</button>
+    </div>
+    <pre id="encryptOutput" class="mono" hidden></pre>
+
+    <div class="row">
+      <label class="grow">Secret ID ile çöz <input id="decId" type="text" placeholder="sec_..." /></label>
+      <button id="decryptBtn">Çöz</button>
+      <button id="tamperBtn" class="warn">Tahrif Et &amp; Tekrar Dene (GCM testi)</button>
+    </div>
+    <pre id="decryptOutput" class="mono" hidden></pre>
+
+    <h3>Kayıtlı şifreli veriler</h3>
+    <table id="secretsTable" class="mono">
+      <thead><tr><th>id</th><th>alias</th><th>algoritma</th><th>versiyon</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>6. Ed25519 İmza (klasik — kuantum sonrası DEĞİL)</h2>
+    <div class="row">
+      <label class="grow">Mesaj <input id="signMsg" type="text" value="Test mesajı 2026" /></label>
+      <button id="signBtn">İmzala</button>
+    </div>
+    <pre id="signOutput" class="mono" hidden></pre>
+  </section>
+
+  <section class="card">
+    <h2>7. X25519 Anahtar Değişimi (klasik — kuantum sonrası DEĞİL)</h2>
+    <button id="x25519Btn">Değişimi Çalıştır</button>
+    <pre id="x25519Output" class="mono" hidden></pre>
+  </section>
+
+  <section class="card wide">
+    <h2>8. Denetim Kaydı (HMAC Zinciri)</h2>
+    <div class="row">
+      <button id="refreshAuditBtn">Kayıtları Getir</button>
+      <button id="verifyAuditBtn">Zincir Bütünlüğünü Doğrula</button>
+    </div>
+    <pre id="auditVerifyOutput" class="mono" hidden></pre>
+    <table id="auditTable" class="mono small">
+      <thead><tr><th>#</th><th>zaman</th><th>eylem</th><th>yol</th><th>durum</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+  <section class="card wide">
+    <h2>9. Gerçek Post-Kuantum Kriptografi (liboqs — NIST FIPS 203/204)</h2>
+    <p class="hint">Bu panel gerçekten derlenmiş liboqs C kütüphanesini çağırır. Simülasyon değildir.</p>
+    <div class="row">
+      <button id="hybridBtn">Hibrit Anahtar Değişimi Çalıştır (X25519 + ML-KEM-1024)</button>
+    </div>
+    <pre id="hybridOutput" class="mono" hidden></pre>
+    <div class="row">
+      <button id="mldsaBtn">ML-DSA-87 İmza Testi Çalıştır</button>
+    </div>
+    <pre id="mldsaOutput" class="mono" hidden></pre>
+  </section>
+
+  <section class="card wide">
+    <h2>10. Gerçek HSM / PKCS#11 (SoftHSM2 — donanım HSM ile aynı arayüz)</h2>
+    <p class="hint">Anahtar token içinde üretilir ve <b>asla çıkarılamaz</b> (never extractable). İmzalama token içinde yapılır.</p>
+    <div class="row">
+      <label>Key ID <input id="hsmKeyId" type="text" value="10" /></label>
+      <label>Label <input id="hsmLabel" type="text" value="ui_test_key" /></label>
+      <button id="hsmCreateBtn">Token İçinde Anahtar Üret</button>
+    </div>
+    <div class="row">
+      <label class="grow">Mesaj <input id="hsmMsg" type="text" value="HSM imza testi" /></label>
+      <button id="hsmSignBtn">HSM ile İmzala</button>
+    </div>
+    <pre id="hsmOutput" class="mono" hidden></pre>
+  </section>
+
+</main>
+
+<footer>
+  <p>Bu arayüzdeki her buton gerçek bir HTTP isteği yapar ve backend'deki gerçek kriptografik işlemin sonucunu gösterir. Sahte/rastgele görüntü verisi yoktur.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

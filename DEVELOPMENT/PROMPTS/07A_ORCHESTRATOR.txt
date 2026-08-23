@@ -1,0 +1,22 @@
+RULES:
+- Mevcut çalışan kodu bozma
+- Backward compatibility koru
+- TODO bırakma
+- Her değişiklik test edilebilir olsun
+- Minimal invasive değişiklik yap
+- Yeni eklenen her şey modüler olsun
+- Güvenlik öncelikli davran
+
+TASK: Introduce lightweight orchestrator layer
+
+APPLY ONLY:
+- new routes
+- critical routes
+
+RESPONSIBILITIES:
+- validation
+- error handling
+- logging
+
+OUTPUT:
+- orchestrator utility

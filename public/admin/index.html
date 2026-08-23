@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ISHv4 — Süper Admin Paneli</title>
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  .module-card { display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
+  .module-card.incompatible { border-color: var(--yellow); }
+  .toggle { position: relative; width: 44px; height: 24px; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; inset: 0; background: #30363d; border-radius: 24px; transition: .2s; }
+  .slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .2s; }
+  input:checked + .slider { background: var(--green); }
+  input:checked + .slider:before { transform: translateX(20px); }
+  .badge-warn { background: #4d3d1f; color: var(--yellow); padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: 8px; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <h1>ISHv4 <span class="tag">Süper Admin Paneli</span></h1>
+  <div><input id="adminToken" type="password" placeholder="Admin Bearer token" style="width:220px" /></div>
+</header>
+
+<main class="grid">
+
+  <section class="card wide">
+    <h2>Sistem Sağlığı</h2>
+    <pre id="healthBox" class="mono">yükleniyor…</pre>
+    <button id="refreshHealthBtn">Yenile</button>
+  </section>
+
+  <section class="card wide">
+    <h2>Opsiyonel Modüller (varsayılan hepsi kapalı)</h2>
+    <p class="hint">⚠️ işaretli modüller sertifikasyon/denetim ile uyumlu değildir — bkz. commercial-extensions/README.md</p>
+    <div id="modulesList"></div>
+  </section>
+
+  <section class="card">
+    <h2>IP Whitelist</h2>
+    <div class="row">
+      <label>Mod
+        <select id="wlMode"><option value="wildcard">wildcard (kapalı)</option><option value="strict">strict</option></select>
+      </label>
+    </div>
+    <textarea id="wlEntries" rows="4" style="width:100%" placeholder="Her satıra bir IP veya CIDR (örn. 10.0.0.0/24)"></textarea>
+    <button id="saveWlBtn">Kaydet</button>
+    <pre id="wlOutput" class="mono" hidden></pre>
+  </section>
+
+  <section class="card wide">
+    <h2>Denetim Kaydı (son 50)</h2>
+    <button id="refreshAuditBtn">Yenile</button>
+    <table class="mono small">
+      <thead><tr><th>#</th><th>zaman</th><th>aktör</th><th>eylem</th><th>durum</th></tr></thead>
+      <tbody id="auditTbody"></tbody>
+    </table>
+  </section>
+
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+function authHeaders() {
+  const t = $('adminToken').value.trim();
+  return t ? { 'Authorization': 'Bearer ' + t } : {};
+}
+async function api(method, url, body) {
+  const res = await fetch(url, {
+    method, headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return res.json();
+}
+
+async function loadHealth() {
+  const h = await (await fetch('/healthz')).json();
+  $('healthBox').textContent = JSON.stringify(h, null, 2);
+}
+$('refreshHealthBtn').onclick = loadHealth;
+
+async function loadModules() {
+  const d = await api('GET', '/api/admin/modules');
+  const list = $('modulesList');
+  if (!d.modules) { list.innerHTML = '<i>Admin token gerekli</i>'; return; }
+  list.innerHTML = d.modules.map(m => `
+    <div class="module-card ${m.certificationCompatible ? '' : 'incompatible'}">
+      <div>
+        <b>${m.id}</b> ${m.certificationCompatible ? '' : '<span class="badge-warn">sertifikasyon-uyumsuz</span>'}
+        ${m.requiresConsent ? '<span class="badge-warn">rıza gerekli</span>' : ''}
+        <div class="hint">${m.description}</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" data-id="${m.id}" ${m.enabled ? 'checked' : ''}>
+        <span class="slider"></span>
+      </label>
+    </div>
+  `).join('');
+  list.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.onchange = async () => {
+      await api('PUT', `/api/admin/modules/${cb.dataset.id}`, { enabled: cb.checked });
+      loadModules();
+    };
+  });
+}
+
+async function loadWhitelist() {
+  const d = await api('GET', '/api/security/ip-whitelist');
+  if (d.mode) {
+    $('wlMode').value = d.mode;
+    $('wlEntries').value = (d.entries || []).join('\n');
+  }
+}
+$('saveWlBtn').onclick = async () => {
+  const entries = $('wlEntries').value.split('\n').map(s => s.trim()).filter(Boolean);
+  const result = await api('PUT', '/api/security/ip-whitelist', { mode: $('wlMode').value, entries });
+  $('wlOutput').hidden = false;
+  $('wlOutput').textContent = JSON.stringify(result, null, 2);
+};
+
+async function loadAudit() {
+  const d = await api('GET', '/api/audit/logs');
+  const tbody = $('auditTbody');
+  if (!d.logs) { tbody.innerHTML = ''; return; }
+  tbody.innerHTML = d.logs.slice(0, 50).map(l => `<tr><td>${l.seq}</td><td>${l.timestamp}</td><td>${l.actorId}</td><td>${l.action}</td><td>${l.statusCode}</td></tr>`).join('');
+}
+$('refreshAuditBtn').onclick = loadAudit;
+
+$('adminToken').addEventListener('change', () => { loadModules(); loadWhitelist(); loadAudit(); });
+
+loadHealth();
+</script>
+</body>
+</html>

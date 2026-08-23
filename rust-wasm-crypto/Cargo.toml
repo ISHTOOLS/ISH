@@ -1,0 +1,15 @@
+[package]
+name = "ishv4_wasm_crypto"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"

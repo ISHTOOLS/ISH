@@ -1,0 +1,39 @@
+RULES:
+- Mevcut çalışan kodu bozma
+- Backward compatibility koru
+- TODO bırakma
+- Her değişiklik test edilebilir olsun
+- Minimal invasive değişiklik yap
+- Yeni eklenen her şey modüler olsun
+- Güvenlik öncelikli davran
+
+TASK: Add advanced anti-spyware defense module
+
+FILE:
+security/spywareDefender.js
+
+FEATURES:
+- root detection
+- process scan
+- network scan
+- persistence check
+- file integrity (optional)
+
+OUTPUT:
+{
+  compromised,
+  rootDetected,
+  suspiciousProcesses,
+  networkAlerts,
+  persistenceFindings
+}
+
+RULES:
+- NO blocking
+- NO destructive ops
+- sanitize output
+
+INTEGRATION:
+- audit
+- health
+- orchestrator

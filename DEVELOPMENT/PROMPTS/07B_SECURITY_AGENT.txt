@@ -1,0 +1,38 @@
+RULES:
+- Mevcut çalışan kodu bozma
+- Backward compatibility koru
+- TODO bırakma
+- Her değişiklik test edilebilir olsun
+- Minimal invasive değişiklik yap
+- Yeni eklenen her şey modüler olsun
+- Güvenlik öncelikli davran
+
+TASK: Build ISHv4 Security Agent
+
+GOAL:
+Detect system/network threats
+
+MODULES:
+- networkMonitor.js
+- wifiScanner.js
+- processMonitor.js
+- fileScanner.js
+
+NO external deps
+
+POLICY:
+{
+  "autoKill": false,
+  "autoQuarantine": true,
+  "logOnly": false
+}
+
+INTEGRATION:
+- audit logger
+
+SAFETY:
+- no rm -rf
+- no kill -9 (unless allowed)
+
+OUTPUT:
+- security-agent/*

@@ -1,0 +1,21 @@
+RULES:
+- Mevcut çalışan kodu bozma
+- Backward compatibility koru
+- TODO bırakma
+- Her değişiklik test edilebilir olsun
+- Minimal invasive değişiklik yap
+- Yeni eklenen her şey modüler olsun
+- Güvenlik öncelikli davran
+
+TASK: Enforce tenant isolation
+
+VALIDATE:
+- vault ops
+- auth context
+- request context
+
+ADD:
+- guard middleware
+
+OUTPUT:
+- tenant guard module

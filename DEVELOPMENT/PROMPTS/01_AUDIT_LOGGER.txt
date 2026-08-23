@@ -1,0 +1,34 @@
+RULES:
+- Mevcut çalışan kodu bozma
+- Backward compatibility koru
+- TODO bırakma
+- Her değişiklik test edilebilir olsun
+- Minimal invasive değişiklik yap
+- Yeni eklenen her şey modüler olsun
+- Güvenlik öncelikli davran
+
+TASK: Add audit logging system
+GOAL:
+Track ALL critical operations securely and consistently
+
+REQUIREMENTS:
+Log events:
+- auth events
+- vault access
+- crypto operations
+
+Each log MUST include:
+- timestamp (ISO)
+- tenantId
+- userId
+- action
+- status
+- errorCode?
+
+SECURITY:
+- NO secrets logging
+- sanitize input
+- constant schema
+
+OUTPUT:
+- auditLogger module

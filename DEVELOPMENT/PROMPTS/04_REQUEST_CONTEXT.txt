@@ -1,0 +1,27 @@
+RULES:
+- Mevcut çalışan kodu bozma
+- Backward compatibility koru
+- TODO bırakma
+- Her değişiklik test edilebilir olsun
+- Minimal invasive değişiklik yap
+- Yeni eklenen her şey modüler olsun
+- Güvenlik öncelikli davran
+
+TASK: Introduce request context safely
+
+ADD:
+requestContext:
+- requestId
+- tenantId
+- userId
+
+USE:
+- middleware
+
+AVAILABLE IN:
+- vault
+- crypto
+- auth
+
+OUTPUT:
+- context middleware

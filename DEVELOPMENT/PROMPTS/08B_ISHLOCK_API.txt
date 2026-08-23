@@ -1,0 +1,30 @@
+RULES:
+- Mevcut çalışan kodu bozma
+- Backward compatibility koru
+- TODO bırakma
+- Her değişiklik test edilebilir olsun
+- Minimal invasive değişiklik yap
+- Yeni eklenen her şey modüler olsun
+- Güvenlik öncelikli davran
+
+TASK: Build ISHLock Encryption API
+
+GOAL:
+Thin encryption layer using ISHv4
+
+FLOW:
+1. API key -> tenantId
+2. getKey from ISHv4
+3. encrypt
+4. return
+
+RULES:
+- NO key storage
+- AES-256-GCM
+- Node.js crypto only
+
+CREATE:
+services/kmsClient.js
+
+OUTPUT:
+- clean API layer

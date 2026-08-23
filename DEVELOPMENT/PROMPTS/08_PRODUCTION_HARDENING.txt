@@ -1,0 +1,34 @@
+RULES:
+- Mevcut çalışan kodu bozma
+- Backward compatibility koru
+- TODO bırakma
+- Her değişiklik test edilebilir olsun
+- Minimal invasive değişiklik yap
+- Yeni eklenen her şey modüler olsun
+- Güvenlik öncelikli davran
+
+TASK: Prepare system for production
+
+ADD:
+
+CONFIG:
+- env validation
+
+SECURITY:
+- disable debug
+- rate limit
+- input limits
+
+ERROR:
+- safe responses
+
+AUDIT:
+- rotation
+- non-blocking
+
+ENDPOINTS:
+- /health
+- /ready
+
+OUTPUT:
+- production modules
