@@ -37,7 +37,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Syntax validation
-        run: node --check commercial-bootstrap.mjs && node --check commercial-extensions/iban-payment.js && node --check commercial-extensions/license-router.js && node --check public/buy.html >/dev/null 2>&1 || true
+        run: node --check commercial-bootstrap.mjs && node --check commercial-extensions/iban-payment.js && node --check commercial-extensions/license-router.js && node --check commercial-extensions/signed-license.js
       - name: Commercial E2E
         run: node --test tests/commercial-e2e.test.js
       - name: Full test suite
