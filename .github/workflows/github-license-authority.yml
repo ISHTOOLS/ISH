@@ -1,0 +1,75 @@
+name: ISH GitHub License Authority
+
+on:
+  workflow_dispatch:
+    inputs:
+      customer_id:
+        description: 'Customer identifier'
+        required: true
+        type: string
+      customer_email:
+        description: 'Customer email (optional)'
+        required: false
+        type: string
+      plan_id:
+        description: 'Commercial plan id'
+        required: true
+        type: string
+      hwid:
+        description: 'Customer hardware binding identifier'
+        required: true
+        type: string
+      duration_days:
+        description: 'License duration in days'
+        required: true
+        type: string
+      order_id:
+        description: 'Paid order id'
+        required: true
+        type: string
+      payment_reference:
+        description: 'Payment reference, e.g. ISH-XXXXXXXXXXXX'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    environment: license-authority
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validate signing key is configured
+        env:
+          ISH_LICENSE_PRIVATE_KEY: ${{ secrets.ISH_LICENSE_PRIVATE_KEY }}
+        run: test -n "$ISH_LICENSE_PRIVATE_KEY"
+
+      - name: Generate signed license
+        env:
+          ISH_LICENSE_PRIVATE_KEY: ${{ secrets.ISH_LICENSE_PRIVATE_KEY }}
+          LICENSE_CUSTOMER_ID: ${{ inputs.customer_id }}
+          LICENSE_CUSTOMER_EMAIL: ${{ inputs.customer_email }}
+          LICENSE_PLAN_ID: ${{ inputs.plan_id }}
+          LICENSE_HWID: ${{ inputs.hwid }}
+          LICENSE_DURATION_DAYS: ${{ inputs.duration_days }}
+          LICENSE_ORDER_ID: ${{ inputs.order_id }}
+          LICENSE_PAYMENT_REFERENCE: ${{ inputs.payment_reference }}
+          LICENSE_OUTPUT_FILE: license.txt
+        run: node commercial-extensions/github-license-authority.js
+
+      - name: Publish license artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ish-license-${{ inputs.order_id }}
+          path: license.txt
+          if-no-files-found: error
+          retention-days: 30
