@@ -3,9 +3,9 @@ import crypto from 'node:crypto';
 
 process.env.ISHV4_NO_LISTEN = 'true';
 const { app: baseApp } = await import('./server.js');
-import { createIbanPaymentRouter, createPaymentOrder, getCommercialPlan, getPaymentOrder, getPaymentOrderInternal, listPaymentOrders, confirmPayment, rejectPayment } from './commercial-extensions/iban-payment.js';
+import { createIbanPaymentRouter, createPaymentOrder, getPaymentOrder, getPaymentOrderInternal, listPaymentOrders, confirmPayment, rejectPayment } from './commercial-extensions/iban-payment.js';
 import { issueSignedLicense, verifySignedLicense } from './commercial-extensions/signed-license.js';
-import { getCommercialPlans } from './commercial-extensions/sales-config.js';
+import { getCommercialPlans, getCommercialPlan } from './commercial-extensions/sales-config.js';
 
 const requireAdmin = (req, res, next) => {
   const header = req.headers.authorization || '';
@@ -25,7 +25,6 @@ const requireAdmin = (req, res, next) => {
 
 const app = express();
 app.use(express.json({ limit: process.env.BODY_LIMIT || '2mb' }));
-
 app.get('/api/commercial/plans', (req, res) => {
   try {
     const plans = getCommercialPlans();
@@ -35,7 +34,6 @@ app.get('/api/commercial/plans', (req, res) => {
     res.status(503).json({ error: error.message });
   }
 });
-
 app.post('/api/payments/iban/orders', (req, res) => {
   try {
     const body = req.body || {};
@@ -47,17 +45,14 @@ app.post('/api/payments/iban/orders', (req, res) => {
     res.status(400).json({ error: error.message });
   }
 });
-
 app.get('/api/payments/iban/orders/:id', (req, res) => {
   const order = getPaymentOrder(req.params.id);
   if (!order) return res.status(404).json({ error: 'payment order not found' });
   res.json(order);
 });
-
 app.get('/api/admin/payments/iban/orders', requireAdmin, (req, res) => {
   res.json({ orders: listPaymentOrders({ status: req.query.status || undefined }) });
 });
-
 app.post('/api/payments/iban/orders/:id/confirm', requireAdmin, (req, res) => {
   try {
     const adminId = req.actorId || req.adminId || req.user?.id;
@@ -68,7 +63,6 @@ app.post('/api/payments/iban/orders/:id/confirm', requireAdmin, (req, res) => {
     res.status(400).json({ error: error.message });
   }
 });
-
 app.post('/api/payments/iban/orders/:id/reject', requireAdmin, (req, res) => {
   try {
     res.json(rejectPayment({ id: req.params.id, adminId: req.actorId || req.adminId || req.user?.id, reason: req.body?.reason }));
@@ -76,7 +70,6 @@ app.post('/api/payments/iban/orders/:id/reject', requireAdmin, (req, res) => {
     res.status(400).json({ error: error.message });
   }
 });
-
 app.post('/api/licenses/verify', (req, res) => {
   try {
     const { token, hwid } = req.body || {};
@@ -89,14 +82,11 @@ app.post('/api/licenses/verify', (req, res) => {
     res.status(503).json({ valid: false, reason: 'License verification is not configured' });
   }
 });
-
 app.use(createIbanPaymentRouter({ express, requireAdmin, issueLicense: issueSignedLicense }));
 app.use(baseApp);
-
 let httpServer = null;
 if (process.env.ISHV4_NO_LISTEN !== 'true') {
   const port = Number(process.env.PORT || 4000);
   httpServer = app.listen(port, () => console.log(`ISH commercial runtime listening on http://localhost:${port}`));
 }
-
 export { app, baseApp, httpServer };
