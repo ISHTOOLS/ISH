@@ -1,0 +1,31 @@
+name: IBAN Payment Licensing Validation
+
+on:
+  pull_request:
+    paths:
+      - 'commercial-extensions/iban-payment.js'
+      - 'commercial-extensions/signed-license.js'
+      - 'tests/iban-payment-licensing.test.js'
+      - '.github/workflows/iban-payment-licensing.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'commercial-extensions/iban-payment.js'
+      - 'commercial-extensions/signed-license.js'
+      - 'tests/iban-payment-licensing.test.js'
+      - '.github/workflows/iban-payment-licensing.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/iban-payment-licensing.test.js
