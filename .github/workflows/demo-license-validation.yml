@@ -1,0 +1,37 @@
+name: Seven Day Demo License Validation
+
+on:
+  pull_request:
+    paths:
+      - 'commercial-extensions/demo-license.js'
+      - 'commercial-bootstrap.mjs'
+      - 'public/demo.html'
+      - 'tests/demo-license.test.js'
+      - '.github/workflows/demo-license-validation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'commercial-extensions/demo-license.js'
+      - 'commercial-bootstrap.mjs'
+      - 'public/demo.html'
+      - 'tests/demo-license.test.js'
+      - '.github/workflows/demo-license-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: node --check commercial-extensions/demo-license.js
+      - run: node --check commercial-bootstrap.mjs
+      - run: node --test tests/demo-license.test.js
+      - run: npm test
+      - run: npm run test:security
