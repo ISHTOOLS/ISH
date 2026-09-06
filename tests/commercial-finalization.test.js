@@ -3,8 +3,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { getCommercialPlans, getCommercialPlan, getPaymentAccount } from '../commercial-extensions/sales-config.js';
-import { createPaymentOrder, getPaymentOrder } from '../commercial-extensions/iban-payment.js';
+
+process.env.ISH_PAYMENT_IBAN_TRY = 'TR000000000000000000000000';
+process.env.ISH_PAYMENT_IBAN_EUR = 'TR000000000000000000000001';
+process.env.ISH_PAYMENT_IBAN_USD = 'TR000000000000000000000002';
+
+const { getCommercialPlans, getCommercialPlan, getPaymentAccount } = await import('../commercial-extensions/sales-config.js');
+const { createPaymentOrder, getPaymentOrder } = await import('../commercial-extensions/iban-payment.js');
 
 test('commercial catalog exposes TRY EUR USD plans', () => {
   const plans = getCommercialPlans();
@@ -42,6 +47,7 @@ test('payment order binds exact plan amount, currency and payment account', () =
     assert.equal(order.currency, 'EUR');
     assert.equal(order.payment.currency, 'EUR');
     assert.equal(order.payment.swift, 'ENASTRISXXX');
+    assert.equal(order.payment.iban, 'TR000000000000000000000001');
     const loaded = getPaymentOrder(order.id);
     assert.equal(loaded.currency, 'EUR');
     assert.equal(loaded.payment.swift, 'ENASTRISXXX');
