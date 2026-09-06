@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="tr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ISH — Satın Alma</title><link rel="stylesheet" href="styles.css"></head>
+<body>
+<header class="topbar"><h1>ISH <span class="tag">Lisans Satın Alma</span></h1></header>
+<main class="grid">
+<section class="card wide">
+<h2>Plan Seç</h2>
+<select id="plan"></select>
+<div class="row"><label>Müşteri e-posta <input id="email" type="email" autocomplete="email"></label><label>HWID <input id="hwid" placeholder="Kurulumdaki HWID"></label></div>
+<button id="create">Ödeme Emri Oluştur</button><pre id="out" class="mono"></pre>
+</section>
+<section class="card wide"><h2>Ödeme</h2><p>Ödeme emri oluşturulduğunda gerçek IBAN ve ödeme referansı gösterilir. Banka transferi manuel olarak doğrulanır.</p></section>
+<section class="card wide"><h2>Lisans Aktivasyon Kontrolü</h2><textarea id="license" rows="5" style="width:100%" placeholder="ISH-L1...."></textarea><button id="verify">Doğrula</button><pre id="verifyOut" class="mono"></pre></section>
+</main>
+<script>
+const $=id=>document.getElementById(id); const customerId=crypto.randomUUID();
+async function load(){const r=await fetch('/api/commercial/plans');const d=await r.json();if(!r.ok)throw new Error(d.error||'Planlar kullanılamıyor');$('plan').innerHTML=d.plans.map(p=>`<option value="${p.id}">${p.name} — ${p.amount} ${p.currency} / ${p.durationDays} gün</option>`).join('');}
+$('create').onclick=async()=>{const planId=$('plan').value;const hwid=$('hwid').value.trim();if(!hwid){$('out').textContent='HWID gerekli';return;}const r=await fetch('/api/payments/iban/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customerId,customerEmail:$('email').value.trim()||null,planId,hwid})});const d=await r.json();$('out').textContent=JSON.stringify(d,null,2);};
+$('verify').onclick=async()=>{const r=await fetch('/api/licenses/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:$('license').value.trim(),hwid:$('hwid').value.trim()||undefined})});$('verifyOut').textContent=JSON.stringify(await r.json(),null,2);};
+load().catch(e=>$('out').textContent=e.message);
+</script>
+</body></html>

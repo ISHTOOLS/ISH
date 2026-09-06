@@ -1,0 +1,46 @@
+name: Commercial Public-Admin E2E Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'commercial-bootstrap.mjs'
+      - 'commercial-extensions/**'
+      - 'public/buy.html'
+      - 'public/admin/index.html'
+      - 'tests/commercial-e2e.test.js'
+      - 'package.json'
+      - 'Dockerfile'
+      - '.github/workflows/commercial-e2e-validation.yml'
+  pull_request:
+    paths:
+      - 'commercial-bootstrap.mjs'
+      - 'commercial-extensions/**'
+      - 'public/buy.html'
+      - 'public/admin/index.html'
+      - 'tests/commercial-e2e.test.js'
+      - 'package.json'
+      - 'Dockerfile'
+      - '.github/workflows/commercial-e2e-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Syntax validation
+        run: node --check commercial-bootstrap.mjs && node --check commercial-extensions/iban-payment.js && node --check commercial-extensions/license-router.js && node --check commercial-extensions/signed-license.js
+      - name: Commercial E2E
+        run: node --test tests/commercial-e2e.test.js
+      - name: Full test suite
+        run: npm test
+      - name: Security regression
+        run: npm run test:security
