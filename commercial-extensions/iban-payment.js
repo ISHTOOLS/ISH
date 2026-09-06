@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { getCommercialPlan, getCommercialPlans } from './sales-config.js';
+import { getCommercialPlan, getCommercialPlans, getPaymentAccount } from './sales-config.js';
 
 const STATUSES = Object.freeze({
   PENDING: 'PENDING',
@@ -10,12 +10,6 @@ const STATUSES = Object.freeze({
   CANCELLED: 'CANCELLED',
   EXPIRED: 'EXPIRED'
 });
-
-function required(name) {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} is required`);
-  return value;
-}
 
 function dataFile() {
   const dir = process.env.ISH_PAYMENT_DATA_DIR || path.join(process.cwd(), 'data');
@@ -51,34 +45,55 @@ function safePublicOrder(order) {
   return publicOrder;
 }
 
-export function getIbanPaymentConfig() {
-  return {
-    bank: required('ISH_PAYMENT_BANK'),
-    accountName: required('ISH_PAYMENT_ACCOUNT_NAME'),
-    iban: required('ISH_PAYMENT_IBAN'),
-    currency: process.env.ISH_PAYMENT_CURRENCY?.trim() || 'TRY'
-  };
+export function getIbanPaymentConfig(currency = 'TRY') {
+  const normalizedCurrency = String(currency).toUpperCase();
+  const account = getPaymentAccount(normalizedCurrency);
+  if (account) {
+    return {
+      currency: normalizedCurrency,
+      bank: account.bank,
+      accountName: process.env.ISH_PAYMENT_ACCOUNT_NAME?.trim() || null,
+      iban: account.iban,
+      swift: account.swift || null
+    };
+  }
+
+  if (normalizedCurrency === 'TRY' && process.env.ISH_PAYMENT_IBAN?.trim()) {
+    return {
+      currency: normalizedCurrency,
+      bank: process.env.ISH_PAYMENT_BANK?.trim() || 'Enpara',
+      accountName: process.env.ISH_PAYMENT_ACCOUNT_NAME?.trim() || null,
+      iban: process.env.ISH_PAYMENT_IBAN.trim(),
+      swift: null
+    };
+  }
+
+  throw new Error(`Payment account is not configured for ${normalizedCurrency}`);
 }
 
 export function createPaymentOrder({ customerId, customerEmail, planId, amount, hwid, durationDays }) {
   if (!customerId || !planId || !hwid) throw new Error('customerId, planId and hwid are required');
   const configuredPlan = getCommercialPlan(planId);
-  const normalizedAmount = normalizeAmount(configuredPlan?.amount ?? amount);
-  const days = Number(configuredPlan?.durationDays ?? durationDays);
+  if (!configuredPlan) throw new Error('Selected commercial plan is not configured');
+
+  const normalizedAmount = normalizeAmount(configuredPlan.amount);
+  const days = Number(configuredPlan.durationDays);
   if (!Number.isInteger(days) || days <= 0) throw new Error('durationDays must be a positive integer');
-  if (configuredPlan && normalizeAmount(amount ?? configuredPlan.amount) !== configuredPlan.amount) {
+  if (amount !== undefined && normalizeAmount(amount) !== normalizedAmount) {
     throw new Error('amount does not match the configured plan');
   }
 
+  const currency = configuredPlan.currency;
+  const payment = getIbanPaymentConfig(currency);
   const now = new Date();
   const order = {
     id: crypto.randomUUID(),
     reference: reference(),
     customerId,
     customerEmail: customerEmail || null,
-    planId,
+    planId: configuredPlan.id,
     amount: normalizedAmount,
-    currency: configuredPlan?.currency || getIbanPaymentConfig().currency,
+    currency,
     hwid,
     durationDays: days,
     status: STATUSES.PENDING,
@@ -94,12 +109,13 @@ export function createPaymentOrder({ customerId, customerEmail, planId, amount, 
   const orders = readOrders();
   orders[order.id] = order;
   writeOrders(orders);
-  return safePublicOrder({ ...order, payment: getIbanPaymentConfig() });
+  return safePublicOrder({ ...order, payment });
 }
 
 export function getPaymentOrder(id) {
   const order = readOrders()[id];
-  return order ? safePublicOrder(order) : null;
+  if (!order) return null;
+  return safePublicOrder({ ...order, payment: getIbanPaymentConfig(order.currency) });
 }
 
 export function getPaymentOrderInternal(id) {
@@ -174,9 +190,13 @@ export function createIbanPaymentRouter({ express, requireAdmin, issueLicense })
   });
 
   router.get('/payments/iban/orders/:id', (req, res) => {
-    const order = getPaymentOrder(req.params.id);
-    if (!order) return res.status(404).json({ error: 'payment order not found' });
-    res.json(order);
+    try {
+      const order = getPaymentOrder(req.params.id);
+      if (!order) return res.status(404).json({ error: 'payment order not found' });
+      res.json(order);
+    } catch (error) {
+      res.status(503).json({ error: error.message });
+    }
   });
 
   router.get('/admin/payments/iban/orders', requireAdmin, (req, res) => {
