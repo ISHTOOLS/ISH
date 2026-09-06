@@ -6,20 +6,27 @@ const { app: baseApp } = await import('./server.js');
 import { createIbanPaymentRouter, createPaymentOrder, getPaymentOrder, getPaymentOrderInternal, listPaymentOrders, confirmPayment, rejectPayment } from './commercial-extensions/iban-payment.js';
 import { issueSignedLicense, verifySignedLicense } from './commercial-extensions/signed-license.js';
 import { getCommercialPlans, getCommercialPlan } from './commercial-extensions/sales-config.js';
+import { resolveSession } from './src/iam.js';
 
 const requireAdmin = (req, res, next) => {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
   const configured = process.env.ADMIN_TOKEN?.trim();
   if (process.env.STRICT_MODE === 'true') {
-    if (req.userRole !== 'admin') return res.status(403).json({ error: 'Admin session required' });
+    const session = token ? resolveSession(token) : null;
+    if (session?.role !== 'admin') return res.status(403).json({ error: 'Admin session required' });
+    req.actorId = session.username;
+    req.userRole = session.role;
+    req.tenantId = session.tenantId || 'default';
     return next();
   }
   if (!configured) {
     if (process.env.DISABLE_FALLBACKS === 'true') return res.status(503).json({ error: 'Admin authentication is not configured' });
+    req.actorId = 'admin-fallback';
     return next();
   }
   if (token.length !== configured.length || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(configured))) return res.status(401).json({ error: 'Invalid or missing admin token' });
+  req.actorId = 'admin-token';
   next();
 };
 
@@ -55,8 +62,7 @@ app.get('/api/admin/payments/iban/orders', requireAdmin, (req, res) => {
 });
 app.post('/api/payments/iban/orders/:id/confirm', requireAdmin, (req, res) => {
   try {
-    const adminId = req.actorId || req.adminId || req.user?.id;
-    const order = confirmPayment({ id: req.params.id, adminId, receivedAmount: req.body?.receivedAmount });
+    const order = confirmPayment({ id: req.params.id, adminId: req.actorId, receivedAmount: req.body?.receivedAmount });
     const license = issueSignedLicense({ order: getPaymentOrderInternal(req.params.id) });
     res.json({ order, license });
   } catch (error) {
@@ -65,7 +71,7 @@ app.post('/api/payments/iban/orders/:id/confirm', requireAdmin, (req, res) => {
 });
 app.post('/api/payments/iban/orders/:id/reject', requireAdmin, (req, res) => {
   try {
-    res.json(rejectPayment({ id: req.params.id, adminId: req.actorId || req.adminId || req.user?.id, reason: req.body?.reason }));
+    res.json(rejectPayment({ id: req.params.id, adminId: req.actorId, reason: req.body?.reason }));
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
