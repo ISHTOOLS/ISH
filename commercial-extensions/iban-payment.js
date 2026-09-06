@@ -97,6 +97,10 @@ export function getPaymentOrder(id) {
   return order ? safePublicOrder(order) : null;
 }
 
+export function getPaymentOrderInternal(id) {
+  return readOrders()[id] || null;
+}
+
 export function listPaymentOrders({ status } = {}) {
   return Object.values(readOrders())
     .filter((order) => !status || order.status === status)
@@ -159,13 +163,14 @@ export function createIbanPaymentRouter({ express, requireAdmin, issueLicense })
 
   router.post('/payments/iban/orders/:id/confirm', requireAdmin, (req, res) => {
     try {
-      const order = confirmPayment({
+      const publicOrder = confirmPayment({
         id: req.params.id,
         adminId: req.user?.id || req.adminId,
         receivedAmount: req.body?.receivedAmount
       });
-      const license = issueLicense(order);
-      res.json({ order, license });
+      const internalOrder = getPaymentOrderInternal(req.params.id);
+      const license = issueLicense(internalOrder);
+      res.json({ order: publicOrder, license });
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
