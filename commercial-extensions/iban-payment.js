@@ -48,7 +48,7 @@ function safePublicOrder(order) {
 export function getIbanPaymentConfig(currency = 'TRY') {
   const normalizedCurrency = String(currency).toUpperCase();
   const account = getPaymentAccount(normalizedCurrency);
-  if (account) {
+  if (account?.iban) {
     return {
       currency: normalizedCurrency,
       bank: account.bank,
@@ -71,7 +71,7 @@ export function getIbanPaymentConfig(currency = 'TRY') {
   throw new Error(`Payment account is not configured for ${normalizedCurrency}`);
 }
 
-export function createPaymentOrder({ customerId, customerEmail, planId, amount, hwid, durationDays }) {
+export function createPaymentOrder({ customerId, customerEmail, planId, amount, hwid }) {
   if (!customerId || !planId || !hwid) throw new Error('customerId, planId and hwid are required');
   const configuredPlan = getCommercialPlan(planId);
   if (!configuredPlan) throw new Error('Selected commercial plan is not configured');
@@ -182,7 +182,7 @@ export function createIbanPaymentRouter({ express, requireAdmin, issueLicense })
       const body = req.body || {};
       const plan = getCommercialPlan(body.planId);
       if (!plan) return res.status(503).json({ error: 'Selected commercial plan is not configured' });
-      const order = createPaymentOrder({ ...body, amount: plan.amount, durationDays: plan.durationDays });
+      const order = createPaymentOrder({ ...body, amount: plan.amount });
       res.status(201).json({ order, instructions: 'Transfer the exact amount using the displayed reference in the bank transfer description.' });
     } catch (error) {
       res.status(400).json({ error: error.message });
