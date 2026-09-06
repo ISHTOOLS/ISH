@@ -9,6 +9,7 @@ const { app: baseApp } = await import('./server.js');
 import { createIbanPaymentRouter } from './commercial-extensions/iban-payment.js';
 import { issueSignedLicense } from './commercial-extensions/signed-license.js';
 import { createLicenseRouter } from './commercial-extensions/license-router.js';
+import { getCommercialPlans } from './commercial-extensions/sales-config.js';
 
 const requireAdmin = (req, res, next) => {
   const header = req.headers.authorization || '';
@@ -29,6 +30,15 @@ const requireAdmin = (req, res, next) => {
 
 const app = express();
 app.use(express.json({ limit: process.env.BODY_LIMIT || '2mb' }));
+app.get('/api/commercial/plans', (req, res) => {
+  try {
+    const plans = getCommercialPlans();
+    if (!plans.length) return res.status(503).json({ error: 'Commercial plans are not configured' });
+    res.json({ plans });
+  } catch (error) {
+    res.status(503).json({ error: error.message });
+  }
+});
 app.use(createIbanPaymentRouter({ express, requireAdmin, issueLicense: issueSignedLicense }));
 app.use(createLicenseRouter({ express }));
 app.use(baseApp);
