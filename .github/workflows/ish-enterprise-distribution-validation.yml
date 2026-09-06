@@ -1,0 +1,25 @@
+name: ISH Enterprise Distribution Validation
+
+on:
+  push:
+    branches:
+      - distribution/ish-enterprise-autonomous-security-validation
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  distribution-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Validate distribution module
+        run: node --test distribution/ish-enterprise/autonomous-security-validation/test.js
