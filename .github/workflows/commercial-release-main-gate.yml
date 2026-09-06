@@ -1,0 +1,59 @@
+name: ISH Commercial Release Main Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'commercial-extensions/**'
+      - 'release/build-commercial-release.mjs'
+      - '.github/workflows/commercial-release-main-gate.yml'
+      - 'tests/iban-payment-licensing.test.js'
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: read
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Syntax validation
+        run: |
+          node --check commercial-extensions/iban-payment.js
+          node --check commercial-extensions/signed-license.js
+          node --check release/build-commercial-release.mjs
+      - name: Commercial licensing tests
+        run: node --test tests/iban-payment-licensing.test.js
+      - name: Full test suite
+        run: npm test
+      - name: Security regression
+        run: npm run test:security
+      - name: Dependency audit
+        run: npm run audit:dependencies
+      - name: Build commercial artifact
+        env:
+          ISH_RELEASE_VERSION: 1.3.0-commercial
+        run: node release/build-commercial-release.mjs
+      - name: Verify commercial artifact
+        run: |
+          test -s release/ishv4-real-kms-1.3.0-commercial/SHA256SUMS.txt
+          test -s release/ishv4-real-kms-1.3.0-commercial/COMMERCIAL-RELEASE.txt
+          test -f release/ishv4-real-kms-1.3.0-commercial/commercial-extensions/iban-payment.js
+          test -f release/ishv4-real-kms-1.3.0-commercial/commercial-extensions/signed-license.js
+      - name: Publish CI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ish-commercial-release-1.3.0
+          path: release/ishv4-real-kms-1.3.0-commercial/
+          if-no-files-found: error
+          retention-days: 30
