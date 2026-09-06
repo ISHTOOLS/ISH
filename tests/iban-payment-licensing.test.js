@@ -7,10 +7,15 @@ import path from 'node:path';
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'ish-iban-'));
 process.env.ISH_PAYMENT_DATA_DIR = temp;
-process.env.ISH_PAYMENT_BANK = 'Enpara';
 process.env.ISH_PAYMENT_ACCOUNT_NAME = 'ISH Test Account';
-process.env.ISH_PAYMENT_IBAN = 'TR000000000000000000000000';
-process.env.ISH_PAYMENT_CURRENCY = 'TRY';
+process.env.ISH_PAYMENT_IBAN_TRY = 'TR000000000000000000000000';
+process.env.ISH_PAYMENT_IBAN_EUR = 'TR000000000000000000000001';
+process.env.ISH_PAYMENT_IBAN_USD = 'TR000000000000000000000002';
+process.env.ISH_PLANS_JSON = JSON.stringify([
+  { id: 'pro', name: 'Professional', amount: 499, durationDays: 30, currency: 'TRY' },
+  { id: 'enterprise', name: 'Enterprise', amount: 999, durationDays: 365, currency: 'TRY' },
+  { id: 'basic', name: 'Basic', amount: 99, durationDays: 30, currency: 'TRY' }
+]);
 
 const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519');
 process.env.ISH_LICENSE_PRIVATE_KEY = privateKey.export({ type: 'pkcs8', format: 'pem' });
@@ -25,8 +30,7 @@ test('creates an IBAN payment order with unique reference', () => {
     customerEmail: 'customer@example.invalid',
     planId: 'pro',
     amount: 499,
-    hwid: 'real-hwid-value',
-    durationDays: 30
+    hwid: 'real-hwid-value'
   });
 
   assert.equal(order.status, 'PENDING');
@@ -34,7 +38,7 @@ test('creates an IBAN payment order with unique reference', () => {
   assert.equal(order.amount, 499);
   assert.equal(order.currency, 'TRY');
   assert.equal(order.hwid, undefined);
-  assert.equal(order.payment.iban, process.env.ISH_PAYMENT_IBAN);
+  assert.equal(order.payment.iban, process.env.ISH_PAYMENT_IBAN_TRY);
   assert.ok(payment.getPaymentOrder(order.id));
 });
 
@@ -43,8 +47,7 @@ test('rejects payment confirmation when amount differs', () => {
     customerId: 'customer-2',
     planId: 'pro',
     amount: 499,
-    hwid: 'real-hwid-2',
-    durationDays: 30
+    hwid: 'real-hwid-2'
   });
 
   assert.throws(
@@ -59,8 +62,7 @@ test('paid order produces an HWID-bound signed license', () => {
     customerId: 'customer-3',
     planId: 'enterprise',
     amount: 999,
-    hwid: 'real-hwid-3',
-    durationDays: 365
+    hwid: 'real-hwid-3'
   });
 
   payment.confirmPayment({ id: order.id, adminId: 'admin-1', receivedAmount: 999 });
@@ -80,8 +82,7 @@ test('tampered signed license is rejected', () => {
     customerId: 'customer-4',
     planId: 'basic',
     amount: 99,
-    hwid: 'real-hwid-4',
-    durationDays: 30
+    hwid: 'real-hwid-4'
   });
   payment.confirmPayment({ id: order.id, adminId: 'admin-1', receivedAmount: 99 });
   const token = licensing.issueSignedLicense({ order: payment.getPaymentOrderInternal(order.id) });
@@ -93,3 +94,5 @@ test('tampered signed license is rejected', () => {
   assert.equal(result.valid, false);
   assert.equal(result.reason, 'Invalid signature');
 });
+
+test.after(() => fs.rmSync(temp, { recursive: true, force: true }));
