@@ -1,0 +1,16 @@
+{
+  "name": "ish-enterprise-autonomous-security-validation",
+  "distribution": "ISH",
+  "source_repository": "ismailozdemir01/ISH-Enterprise",
+  "source_commit": "4b90e782aedabf79221f3334b898605c540ec666",
+  "status_contract": ["CONFIRMED_SAFE", "CONFIRMED_VULNERABLE", "MITIGATED", "NOT_AFFECTED", "UNKNOWN", "NOT_CONFIGURED", "UNAVAILABLE"],
+  "production_data_policy": "real-data-only",
+  "offensive_execution": false,
+  "evasion": false,
+  "autonomous_pivoting": false,
+  "files": [
+    "index.js",
+    "test.js",
+    "README.md"
+  ]
+}
