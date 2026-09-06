@@ -1,6 +1,11 @@
 import express from 'express';
 import crypto from 'node:crypto';
-import { app } from './server.js';
+
+// server.js historically owns the base application. Disable its direct
+// listener here so the commercial wrapper can put public sales/license
+// routes before the base application's static/fallback stack.
+process.env.ISHV4_NO_LISTEN = 'true';
+const { app: baseApp } = await import('./server.js');
 import { createIbanPaymentRouter } from './commercial-extensions/iban-payment.js';
 import { issueSignedLicense } from './commercial-extensions/signed-license.js';
 import { createLicenseRouter } from './commercial-extensions/license-router.js';
@@ -22,7 +27,16 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+const app = express();
+app.use(express.json({ limit: process.env.BODY_LIMIT || '2mb' }));
 app.use(createIbanPaymentRouter({ express, requireAdmin, issueLicense: issueSignedLicense }));
 app.use(createLicenseRouter({ express }));
+app.use(baseApp);
 
-export { app };
+let httpServer = null;
+if (process.env.ISHV4_NO_LISTEN !== 'true') {
+  const port = Number(process.env.PORT || 4000);
+  httpServer = app.listen(port, () => console.log(`ISH commercial runtime listening on http://localhost:${port}`));
+}
+
+export { app, baseApp, httpServer };
