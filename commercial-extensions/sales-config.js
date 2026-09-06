@@ -30,33 +30,26 @@ function parsePlans() {
   });
 }
 
-const PAYMENT_ACCOUNTS = {
-  TRY: {
-    currency: 'TRY',
-    bank: 'Enpara',
-    iban: 'TR800015700000000112391220',
-    swift: null
-  },
-  EUR: {
-    currency: 'EUR',
-    bank: 'Enpara',
-    iban: 'TR490015700000000201437778',
-    swift: 'ENASTRISXXX'
-  },
-  USD: {
-    currency: 'USD',
-    bank: 'Enpara',
-    iban: 'TR980015700000000205191087',
-    swift: 'ENASTRISXXX'
-  }
-};
+const PAYMENT_ACCOUNTS = Object.freeze({
+  TRY: { currency: 'TRY', bank: 'Enpara', ibanEnv: 'ISH_PAYMENT_IBAN_TRY', swift: null },
+  EUR: { currency: 'EUR', bank: 'Enpara', ibanEnv: 'ISH_PAYMENT_IBAN_EUR', swift: 'ENASTRISXXX' },
+  USD: { currency: 'USD', bank: 'Enpara', ibanEnv: 'ISH_PAYMENT_IBAN_USD', swift: 'ENASTRISXXX' }
+});
 
 export function getPaymentAccounts() {
   return PAYMENT_ACCOUNTS;
 }
 
 export function getPaymentAccount(currency) {
-  return PAYMENT_ACCOUNTS[String(currency).toUpperCase()] || null;
+  const account = PAYMENT_ACCOUNTS[String(currency).toUpperCase()];
+  if (!account) return null;
+  return {
+    currency: account.currency,
+    bank: account.bank,
+    iban: process.env[account.ibanEnv]?.trim() || null,
+    swift: account.swift,
+    ibanEnv: account.ibanEnv
+  };
 }
 
 export function getCommercialPlans() {
