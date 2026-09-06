@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { getCommercialPlan, getCommercialPlans } from './sales-config.js';
 
 const STATUSES = Object.freeze({
   PENDING: 'PENDING',
@@ -46,7 +47,7 @@ function reference() {
 }
 
 function safePublicOrder(order) {
-  const { customerEmail, hwid, ...publicOrder } = order;
+  const { customerEmail, hwid, license, ...publicOrder } = order;
   return publicOrder;
 }
 
@@ -61,9 +62,13 @@ export function getIbanPaymentConfig() {
 
 export function createPaymentOrder({ customerId, customerEmail, planId, amount, hwid, durationDays }) {
   if (!customerId || !planId || !hwid) throw new Error('customerId, planId and hwid are required');
-  const normalizedAmount = normalizeAmount(amount);
-  const days = Number(durationDays);
+  const configuredPlan = getCommercialPlan(planId);
+  const normalizedAmount = normalizeAmount(configuredPlan?.amount ?? amount);
+  const days = Number(configuredPlan?.durationDays ?? durationDays);
   if (!Number.isInteger(days) || days <= 0) throw new Error('durationDays must be a positive integer');
+  if (configuredPlan && normalizeAmount(amount ?? configuredPlan.amount) !== configuredPlan.amount) {
+    throw new Error('amount does not match the configured plan');
+  }
 
   const now = new Date();
   const order = {
@@ -73,7 +78,7 @@ export function createPaymentOrder({ customerId, customerEmail, planId, amount, 
     customerEmail: customerEmail || null,
     planId,
     amount: normalizedAmount,
-    currency: getIbanPaymentConfig().currency,
+    currency: configuredPlan?.currency || getIbanPaymentConfig().currency,
     hwid,
     durationDays: days,
     status: STATUSES.PENDING,
@@ -146,9 +151,22 @@ export function createIbanPaymentRouter({ express, requireAdmin, issueLicense })
   if (!express?.Router) throw new Error('express Router is required');
   const router = express.Router();
 
+  router.get('/commercial/plans', (req, res) => {
+    try {
+      const plans = getCommercialPlans();
+      if (!plans.length) return res.status(503).json({ error: 'Commercial plans are not configured' });
+      res.json({ plans });
+    } catch (error) {
+      res.status(503).json({ error: error.message });
+    }
+  });
+
   router.post('/payments/iban/orders', (req, res) => {
     try {
-      const order = createPaymentOrder(req.body || {});
+      const body = req.body || {};
+      const plan = getCommercialPlan(body.planId);
+      if (!plan) return res.status(503).json({ error: 'Selected commercial plan is not configured' });
+      const order = createPaymentOrder({ ...body, amount: plan.amount, durationDays: plan.durationDays });
       res.status(201).json({ order, instructions: 'Transfer the exact amount using the displayed reference in the bank transfer description.' });
     } catch (error) {
       res.status(400).json({ error: error.message });
@@ -161,13 +179,14 @@ export function createIbanPaymentRouter({ express, requireAdmin, issueLicense })
     res.json(order);
   });
 
+  router.get('/admin/payments/iban/orders', requireAdmin, (req, res) => {
+    res.json({ orders: listPaymentOrders({ status: req.query.status || undefined }) });
+  });
+
   router.post('/payments/iban/orders/:id/confirm', requireAdmin, (req, res) => {
     try {
-      const publicOrder = confirmPayment({
-        id: req.params.id,
-        adminId: req.user?.id || req.adminId,
-        receivedAmount: req.body?.receivedAmount
-      });
+      const adminId = req.actorId || req.adminId || req.user?.id;
+      const publicOrder = confirmPayment({ id: req.params.id, adminId, receivedAmount: req.body?.receivedAmount });
       const internalOrder = getPaymentOrderInternal(req.params.id);
       const license = issueLicense(internalOrder);
       res.json({ order: publicOrder, license });
@@ -180,7 +199,7 @@ export function createIbanPaymentRouter({ express, requireAdmin, issueLicense })
     try {
       res.json(rejectPayment({
         id: req.params.id,
-        adminId: req.user?.id || req.adminId,
+        adminId: req.actorId || req.adminId || req.user?.id,
         reason: req.body?.reason
       }));
     } catch (error) {
