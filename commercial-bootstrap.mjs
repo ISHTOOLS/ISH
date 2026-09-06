@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'node:crypto';
 import { app } from './server.js';
 import { createIbanPaymentRouter } from './commercial-extensions/iban-payment.js';
 import { issueSignedLicense } from './commercial-extensions/signed-license.js';
@@ -17,9 +18,7 @@ const requireAdmin = (req, res, next) => {
     return next();
   }
   if (token.length !== configured.length) return res.status(401).json({ error: 'Invalid or missing admin token' });
-  const crypto = await import('node:crypto');
-  const a = Buffer.from(token); const b = Buffer.from(configured);
-  if (!crypto.timingSafeEqual(a, b)) return res.status(401).json({ error: 'Invalid or missing admin token' });
+  if (!crypto.timingSafeEqual(Buffer.from(token), Buffer.from(configured))) return res.status(401).json({ error: 'Invalid or missing admin token' });
   next();
 };
 
