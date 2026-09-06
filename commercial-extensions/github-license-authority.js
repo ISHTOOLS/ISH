@@ -37,9 +37,9 @@ const order = {
 };
 
 process.env.ISH_LICENSE_PRIVATE_KEY = privateKey;
-const license = issueSignedLicense({ order });
-if (!license?.token) throw new Error('License generation failed');
+const token = issueSignedLicense({ order });
+if (typeof token !== 'string' || !token.startsWith('ISH-L1.')) throw new Error('License generation failed');
 
 const output = process.env.LICENSE_OUTPUT_FILE || 'license.txt';
-fs.writeFileSync(output, `${license.token}\n`, { mode: 0o600 });
+fs.writeFileSync(output, `${token}\n`, { mode: 0o600 });
 console.log(JSON.stringify({ generated: true, output, customerId, planId, durationDays, orderId, paymentReference }, null, 2));
